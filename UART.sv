@@ -35,8 +35,21 @@ module OverSampling #(parameter sr = 4) (
 endmodule
 
 module CrossDomainClock (
+    input wire clk1,
+    input wire clk2,
+    input wire dataIn,
+    output reg syncOut
+);
+    reg FF2Out, FF1Out;
     
-)
+    always @(posedge clk1) begin
+        FF1Out <= dataIn;
+    end
+
+    always @(posedge clk2) begin
+        FF2Out <= FF1Out;
+        syncOut <= FF2Out;
+    end
 
 endmodule
 
