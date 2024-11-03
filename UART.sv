@@ -55,15 +55,51 @@ endmodule
 
 module main #(parameter sr = 4) (
     input wire clk,
-    input [sr-1:0] rx
+    input wire UART_clk, //clk from PC
+    input wire rx_in,
+    output reg [7:0] rx_byte,
+    output reg rx_out
 );
     wire BaudTickOut;
+    wire rx_sync, rx_oversample;
 
     BaudTickGen baud(
         .clk(clk),
         .BaudTick(BaudTickOut)
     );
 
+    CrossDomainClock sync_clk (
+        .clk1(clk),
+        .clk2(UART_clk),
+        .dataIn(rx_in),
+        .syncOut(rx_sync)
+    );
 
+    OverSampling #( //TODO: paramaterize all variable to sr
+        .sr(sr)
+    ) OverSample (
+        .clk(clk),
+        .rx({rx_sync, rx_sync, rx_sync, rx_sync}),
+        .out(rx_oversample)
+    );
+
+    //TODO: implement FSM
+    reg [3:0] bit_count;
+    reg [9:0] shift_reg;
+
+    always @(posedge clk) begin
+        if (BaudTickOut) begin
+            if (!rx_oversample && !rx_out) begin
+                shift_reg <= 10'b0;
+                bit_count <= 0;
+                rx_out <= 0;
+            end else if (bit_count < 10) begin
+                shift_reg <= {rx_oversample, shift_reg[9:1]};
+                bit_count <= bit_count + 1;
+            end else if (bit_count == 10) begin
+                rx_out <= 1;
+            end
+        end
+    end
 
 endmodule
